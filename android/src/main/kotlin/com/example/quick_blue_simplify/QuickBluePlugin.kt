@@ -270,6 +270,7 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
       sendMessage(
         messageConnector, mapOf(
           "deviceId" to gatt.device.address,
+          "serviceId" to characteristic.service.uuid.toString(),
           "characteristicValue" to mapOf(
             "characteristic" to characteristic.uuid.toString(),
             "value" to characteristic.value
@@ -287,6 +288,7 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
       sendMessage(
         messageConnector, mapOf(
           "deviceId" to gatt.device.address,
+          "serviceId" to characteristic.service.uuid.toString(),
           "characteristicValue" to mapOf(
             "characteristic" to characteristic.uuid.toString(),
             "value" to characteristic.value
