@@ -27,7 +27,11 @@ class PermissionHandler {
   }
 
   static Future<bool> checkLocationIsEnable() async {
-    return (await Permission.locationWhenInUse.serviceStatus.isEnabled) == true;
+    if (Platform.isAndroid) {
+      return (await Permission.locationWhenInUse.serviceStatus.isEnabled) == true;
+    } else {
+      return true;
+    }
   }
 
   static Future<bool> checkBleIsEnable() async {

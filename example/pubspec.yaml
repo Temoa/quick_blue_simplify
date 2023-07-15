@@ -1,6 +1,7 @@
 name: quick_blue_simplify_example
 description: Demonstrates how to use the quick_blue_simplify plugin.
 publish_to: 'none'
+version: 0.0.1+1
 
 environment:
   sdk: '>=3.0.5 <4.0.0'
