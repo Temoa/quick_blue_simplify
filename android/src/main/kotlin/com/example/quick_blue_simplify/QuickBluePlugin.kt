@@ -78,14 +78,15 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
 
       "connect" -> {
         val deviceId = call.argument<String>("deviceId")!!
+        val autoConnect = call.argument<Boolean>("autoConnect") ?: false
         if (knownGatts.find { it.device.address == deviceId } != null) {
           return result.success(null)
         }
         val remoteDevice = bluetoothManager.adapter.getRemoteDevice(deviceId)
         val gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-          remoteDevice.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+          remoteDevice.connectGatt(context, autoConnect, gattCallback, BluetoothDevice.TRANSPORT_LE)
         } else {
-          remoteDevice.connectGatt(context, false, gattCallback)
+          remoteDevice.connectGatt(context, autoConnect, gattCallback)
         }
         knownGatts.add(gatt)
         result.success(null)
@@ -179,7 +180,7 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
     }
 
     override fun onScanResult(callbackType: Int, result: ScanResult) {
-      Log.v(TAG, "onScanResult: $callbackType + $result")
+//      Log.v(TAG, "onScanResult: $callbackType + $result")
       scanResultSink?.success(
         mapOf<String, Any>(
           "name" to (result.device.name ?: ""),
@@ -192,7 +193,7 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
     }
 
     override fun onBatchScanResults(results: MutableList<ScanResult>?) {
-      Log.v(TAG, "onBatchScanResults: $results")
+//      Log.v(TAG, "onBatchScanResults: $results")
     }
   }
 
