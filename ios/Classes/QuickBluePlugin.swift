@@ -242,7 +242,7 @@ extension SwiftQuickBluePlugin: CBPeripheralDelegate {
     print("peripheral:didUpdateValueForForCharacteristic \(characteristic.uuid) \(characteristic.value as! NSData) error: \(error)")
     self.messageConnector.sendMessage([
       "deviceId": peripheral.uuid.uuidString,
-      "serviceId": characteristic?.service.uuid.uuidStr ?? "",
+      "serviceId": characteristic.service?.uuid.uuidStr ?? "",
       "characteristicValue": [
         "characteristic": characteristic.uuid.uuidStr,
         "value": FlutterStandardTypedData(bytes: characteristic.value!)

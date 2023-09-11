@@ -71,7 +71,6 @@ class _MyAppState extends State<MyApp> {
     QuickBlue.scanResultStream.listen((result) {
       final temp = [..._scanResults];
       temp.add(result);
-      print('look ${result.allManufacturerDataHead}');
       setState(() {
         _scanResults = temp;
       });
@@ -91,7 +90,6 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _checkPermission() async {
     final granted = await PermissionHandler.requestBlePermission();
-    if (!mounted) return;
     if (granted) {
       final isLocationEnable = await PermissionHandler.checkLocationIsEnable();
       if (isLocationEnable) {
