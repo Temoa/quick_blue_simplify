@@ -180,7 +180,7 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
     }
 
     override fun onScanResult(callbackType: Int, result: ScanResult) {
-//      Log.v(TAG, "onScanResult: $callbackType + $result")
+      Log.v(TAG, "onScanResult: $callbackType + $result")
       scanResultSink?.success(
         mapOf<String, Any>(
           "name" to (result.device.name ?: ""),
@@ -193,7 +193,7 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
     }
 
     override fun onBatchScanResults(results: MutableList<ScanResult>?) {
-//      Log.v(TAG, "onBatchScanResults: $results")
+      Log.v(TAG, "onBatchScanResults: $results")
     }
   }
 
