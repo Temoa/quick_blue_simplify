@@ -3,11 +3,14 @@ package com.example.quick_blue_simplify
 import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.ParcelUuid
 import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.*
@@ -55,6 +58,7 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
   private lateinit var bluetoothManager: BluetoothManager
 
   private val knownGatts = mutableListOf<BluetoothGatt>()
+  private val cacheBluetoothDevices = HashMap<String, BluetoothDevice>()
 
   private fun sendMessage(messageChannel: BasicMessageChannel<Any>, message: Map<String, Any>) {
     mainThreadHandler.post { messageChannel.send(message) }
@@ -67,7 +71,14 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
       }
 
       "startScan" -> {
-        bluetoothManager.adapter.bluetoothLeScanner?.startScan(scanCallback)
+        val filterServiceUUID = call.argument<String>("filterServiceUUID")
+        if (filterServiceUUID != null) {
+          val scanFilter = ScanFilter.Builder().setServiceUuid(ParcelUuid(UUID.fromString(filterServiceUUID))).build()
+          val scanSettings = ScanSettings.Builder().build()
+          bluetoothManager.adapter.bluetoothLeScanner?.startScan(listOf(scanFilter), scanSettings, scanCallback)
+        } else {
+          bluetoothManager.adapter.bluetoothLeScanner?.startScan(scanCallback)
+        }
         result.success(null)
       }
 
@@ -82,13 +93,14 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
         if (knownGatts.find { it.device.address == deviceId } != null) {
           return result.success(null)
         }
-        val remoteDevice = bluetoothManager.adapter.getRemoteDevice(deviceId)
+        val remoteDevice = cacheBluetoothDevices[deviceId] ?: bluetoothManager.adapter.getRemoteDevice(deviceId)
         val gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
           remoteDevice.connectGatt(context, autoConnect, gattCallback, BluetoothDevice.TRANSPORT_LE)
         } else {
           remoteDevice.connectGatt(context, autoConnect, gattCallback)
         }
         knownGatts.add(gatt)
+        cacheBluetoothDevices[deviceId] = remoteDevice
         result.success(null)
         // TODO connecting
       }

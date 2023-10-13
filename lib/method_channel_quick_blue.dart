@@ -33,8 +33,10 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
   }
 
   @override
-  void startScan() {
-    _method.invokeMethod('startScan').then((_) => debugPrint('startScan invokeMethod success'));
+  void startScan({String? filterServiceUUID}) {
+    _method.invokeMethod('startScan', {
+      "filterServiceUUID": filterServiceUUID,
+    }).then((_) => debugPrint('startScan invokeMethod success'));
   }
 
   @override
