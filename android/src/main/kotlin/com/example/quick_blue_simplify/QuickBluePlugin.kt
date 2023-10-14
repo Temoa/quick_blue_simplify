@@ -47,7 +47,7 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
   }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-    bluetoothManager.adapter.bluetoothLeScanner?.stopScan(scanCallback)
+    lastScanCallback?.let { bluetoothManager.adapter.bluetoothLeScanner?.stopScan(it) }
 
     eventScanResult.setStreamHandler(null)
     method.setMethodCallHandler(null)
@@ -59,6 +59,8 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
 
   private val knownGatts = mutableListOf<BluetoothGatt>()
   private val cacheBluetoothDevices = HashMap<String, BluetoothDevice>()
+
+  private var lastScanCallback: MyScanCallback? = null
 
   private fun sendMessage(messageChannel: BasicMessageChannel<Any>, message: Map<String, Any>) {
     mainThreadHandler.post { messageChannel.send(message) }
@@ -72,18 +74,19 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
 
       "startScan" -> {
         val filterServiceUUID = call.argument<String>("filterServiceUUID")
+        lastScanCallback = getScanCallback()
         if (filterServiceUUID != null) {
           val scanFilter = ScanFilter.Builder().setServiceUuid(ParcelUuid(UUID.fromString(filterServiceUUID))).build()
-          val scanSettings = ScanSettings.Builder().build()
-          bluetoothManager.adapter.bluetoothLeScanner?.startScan(listOf(scanFilter), scanSettings, scanCallback)
+          val scanSettings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
+          bluetoothManager.adapter.bluetoothLeScanner?.startScan(listOf(scanFilter), scanSettings, lastScanCallback!!)
         } else {
-          bluetoothManager.adapter.bluetoothLeScanner?.startScan(scanCallback)
+          bluetoothManager.adapter.bluetoothLeScanner?.startScan(lastScanCallback!!)
         }
         result.success(null)
       }
 
       "stopScan" -> {
-        bluetoothManager.adapter.bluetoothLeScanner?.stopScan(scanCallback)
+        lastScanCallback?.let { bluetoothManager.adapter.bluetoothLeScanner?.stopScan(it) }
         result.success(null)
       }
 
@@ -184,9 +187,15 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
   private fun cleanConnection(gatt: BluetoothGatt) {
     knownGatts.remove(gatt)
     gatt.disconnect()
+    gatt.close()
   }
 
-  private val scanCallback = object : ScanCallback() {
+  private fun getScanCallback(): MyScanCallback {
+    return MyScanCallback()
+  }
+
+  inner class MyScanCallback : ScanCallback() {
+
     override fun onScanFailed(errorCode: Int) {
       Log.v(TAG, "onScanFailed: $errorCode")
     }
