@@ -22,18 +22,22 @@ extension CBPeripheral {
     }
   }
 
-  public func getCharacteristic(_ characteristic: String, of service: String) -> CBCharacteristic {
+  public func getCharacteristic(_ characteristic: String, of service: String) -> CBCharacteristic? {
     let s = self.services?.first {
       $0.uuid.uuidStr == service || "0000\($0.uuid.uuidStr)-\(GSS_SUFFIX)" == service
     }
     let c = s?.characteristics?.first {
       $0.uuid.uuidStr == characteristic || "0000\($0.uuid.uuidStr)-\(GSS_SUFFIX)" == characteristic
     }
-    return c!
+    return c
   }
 
   public func setNotifiable(_ bleInputProperty: String, for characteristic: String, of service: String) {
-    setNotifyValue(bleInputProperty != "disabled", for: getCharacteristic(characteristic, of: service))
+    let c = getCharacteristic(characteristic, of: service)
+    if(c == nil) {
+      return
+    }
+    setNotifyValue(bleInputProperty != "disabled", for: c!)
   }
 }
 
@@ -66,7 +70,14 @@ public class SwiftQuickBluePlugin: NSObject, FlutterPlugin {
     case "isBluetoothAvailable":
       result(manager.state == .poweredOn)
     case "startScan":
-      manager.scanForPeripherals(withServices: nil)
+      let arguments = call.arguments as! Dictionary<String, Any>
+      let filterServiceUUID = arguments["filterServiceUUID"] as? String
+      if(filterServiceUUID == nil) {
+        manager.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
+      } else {
+        let cbUUID = CBUUID(string: filterServiceUUID!)
+        manager.scanForPeripherals(withServices: [cbUUID], options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
+      }
       result(nil)
     case "stopScan":
       manager.stopScan()
@@ -133,7 +144,12 @@ public class SwiftQuickBluePlugin: NSObject, FlutterPlugin {
         result(FlutterError(code: "IllegalArgument", message: "Unknown deviceId:\(deviceId)", details: nil))
         return
       }
-      peripheral.readValue(for: peripheral.getCharacteristic(characteristic, of: service))
+      let c = peripheral.getCharacteristic(characteristic, of: service)
+      if(c == nil) {
+        result(FlutterError(code: "IllegalArgument", message: "Characteristic :\(characteristic) \(service)", details: nil))
+        return
+      }
+      peripheral.readValue(for: c!)
       result(nil)
     case "writeValue":
       let arguments = call.arguments as! Dictionary<String, Any>
@@ -147,7 +163,12 @@ public class SwiftQuickBluePlugin: NSObject, FlutterPlugin {
         return
       }
       let type = bleOutputProperty == "withoutResponse" ? CBCharacteristicWriteType.withoutResponse : CBCharacteristicWriteType.withResponse
-      peripheral.writeValue(value.data, for: peripheral.getCharacteristic(characteristic, of: service), type: type)
+      let c = peripheral.getCharacteristic(characteristic, of: service)
+      if(c == nil) {
+        result(FlutterError(code: "IllegalArgument", message: "Characteristic :\(characteristic) \(service)", details: nil))
+        return
+      }
+      peripheral.writeValue(value.data, for: c!, type: type)
       result(nil)
     default:
       result(FlutterMethodNotImplemented)
@@ -217,12 +238,18 @@ extension SwiftQuickBluePlugin: FlutterStreamHandler {
 extension SwiftQuickBluePlugin: CBPeripheralDelegate {
   public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
     print("peripheral: \(peripheral.uuid.uuidString) didDiscoverServices: \(error)")
+    if(peripheral.services == nil) {
+      return
+    }
     for service in peripheral.services! {
       peripheral.discoverCharacteristics(nil, for: service)
     }
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+    if(service.characteristics == nil) {
+      return
+    }
     for characteristic in service.characteristics! {
       print("peripheral:didDiscoverCharacteristicsForService (\(service.uuid.uuidStr), \(characteristic.uuid.uuidStr)")
     }
@@ -235,11 +262,14 @@ extension SwiftQuickBluePlugin: CBPeripheralDelegate {
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
-    print("peripheral:didWriteValueForCharacteristic \(characteristic.uuid.uuidStr) \(characteristic.value as? NSData) error: \(error)")
+    print("peripheral:didWriteValueForCharacteristic \(characteristic.uuid.uuidStr) \(characteristic.value) error: \(error)")
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-    print("peripheral:didUpdateValueForForCharacteristic \(characteristic.uuid) \(characteristic.value as! NSData) error: \(error)")
+    if(characteristic.value == nil) {
+      return
+    }
+    print("peripheral:didUpdateValueForForCharacteristic \(characteristic.uuid) \(characteristic.value) error: \(error)")
     self.messageConnector.sendMessage([
       "deviceId": peripheral.uuid.uuidString,
       "serviceId": characteristic.service?.uuid.uuidStr ?? "",
@@ -250,3 +280,4 @@ extension SwiftQuickBluePlugin: CBPeripheralDelegate {
     ])
   }
 }
+
