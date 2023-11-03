@@ -6,7 +6,10 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -44,6 +47,9 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
     context = flutterPluginBinding.applicationContext
     mainThreadHandler = Handler(Looper.getMainLooper())
     bluetoothManager = flutterPluginBinding.applicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+
+    val filterAdapter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+    context.registerReceiver(mBluetoothAdapterStateReceiver, filterAdapter)
   }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -51,6 +57,8 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
 
     eventScanResult.setStreamHandler(null)
     method.setMethodCallHandler(null)
+
+    context.unregisterReceiver(mBluetoothAdapterStateReceiver)
   }
 
   private lateinit var context: Context
@@ -317,6 +325,39 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
           )
         )
       )
+    }
+  }
+
+  private val mBluetoothAdapterStateReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+      val action = intent.action
+
+      // no change?
+      if (action == null || BluetoothAdapter.ACTION_STATE_CHANGED != action) {
+        return
+      }
+      val adapterState = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+
+      // disconnect all devices
+      if (adapterState == BluetoothAdapter.STATE_TURNING_OFF ||
+        adapterState == BluetoothAdapter.STATE_OFF
+      ) {
+        cacheBluetoothDevices.clear()
+        for (gatt in knownGatts) {
+          try {
+            gatt.disconnect()
+            sendMessage(
+              messageConnector, mapOf(
+                "deviceId" to gatt.device.address,
+                "ConnectionState" to "disconnected"
+              )
+            )
+          } catch (e: Exception) {
+            //
+          }
+        }
+        knownGatts.clear()
+      }
     }
   }
 }
