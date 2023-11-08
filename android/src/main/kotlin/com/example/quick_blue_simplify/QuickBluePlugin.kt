@@ -1,5 +1,6 @@
 package com.example.quick_blue_simplify
 
+import android.R.attr.value
 import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.bluetooth.le.ScanCallback
@@ -22,6 +23,7 @@ import io.flutter.plugin.common.MethodChannel.Result
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
+
 
 private const val TAG = "QuickBluePlugin"
 
@@ -174,16 +176,37 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
         val service = call.argument<String>("service")!!
         val characteristic = call.argument<String>("characteristic")!!
         val value = call.argument<ByteArray>("value")!!
+        val bleOutputProperty = call.argument<String>("bleOutputProperty")!!
+
         val gatt = knownGatts.find { it.device.address == deviceId }
           ?: return result.error("IllegalArgument", "Unknown deviceId: $deviceId", null)
-        val writeResult = gatt.getCharacteristic(service to characteristic)?.let {
-          it.value = value
-          gatt.writeCharacteristic(it)
+
+        val targetCharacteristic = gatt.getCharacteristic(service to characteristic)
+
+        val writeType = if (bleOutputProperty == "withResponse") {
+          BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+        } else {
+          BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
         }
-        if (writeResult == true)
-          result.success(null)
-        else
-          result.error("Characteristic unavailable", null, null)
+
+        if (Build.VERSION.SDK_INT >= 33) {
+          val rv = gatt.writeCharacteristic(targetCharacteristic, value, writeType)
+          if (rv != BluetoothStatusCodes.SUCCESS) {
+            result.error("writeCharacteristic", "gatt.writeCharacteristic() returned $rv", null)
+            return
+          }
+        } else {
+          if (!targetCharacteristic.setValue(value)) {
+            result.error("writeCharacteristic", "characteristic.setValue() returned false", null);
+            return
+          }
+          targetCharacteristic.writeType = writeType
+          if (!gatt.writeCharacteristic(targetCharacteristic)) {
+            result.error("writeCharacteristic", "gatt.writeCharacteristic() returned false", null);
+            return
+          }
+        }
+        result.success(null)
       }
 
       else -> {
@@ -311,6 +334,17 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
 
     override fun onCharacteristicWrite(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic, status: Int) {
       Log.v(TAG, "onCharacteristicWrite ${characteristic.uuid}, ${characteristic.value.contentToString()} $status")
+      if (gatt == null) return
+      sendMessage(
+        messageConnector, mapOf(
+          "deviceId" to gatt.device.address,
+          "serviceId" to characteristic.service.uuid.toString(),
+          "onCharacteristicWrite" to mapOf(
+            "characteristic" to characteristic.uuid.toString(),
+            "success" to (status == BluetoothGatt.GATT_SUCCESS),
+          )
+        )
+      )
     }
 
     override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {

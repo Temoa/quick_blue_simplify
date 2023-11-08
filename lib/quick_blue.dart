@@ -75,4 +75,8 @@ class QuickBlue {
   }
 
   static Future<int> requestMtu(String deviceId, int expectedMtu) => _platform.requestMtu(deviceId, expectedMtu);
+
+  static Future<void> writeValueWithResponse(String deviceId, String service, String characteristic, Uint8List value) {
+    return _platform.writeValueWithResponse(deviceId, service, characteristic, value);
+  }
 }

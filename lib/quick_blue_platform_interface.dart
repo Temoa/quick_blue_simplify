@@ -61,4 +61,6 @@ abstract class QuickBluePlatform extends PlatformInterface {
   Future<void> writeValue(String deviceId, String service, String characteristic, Uint8List value, BleOutputProperty bleOutputProperty);
 
   Future<int> requestMtu(String deviceId, int expectedMtu);
+
+  Future<void> writeValueWithResponse(String deviceId, String service, String characteristic, Uint8List value);
 }

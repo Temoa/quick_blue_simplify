@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
+import 'package:mutex/mutex.dart';
 
 import 'quick_blue_platform_interface.dart';
 
@@ -10,6 +11,9 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
   static const MethodChannel _method = MethodChannel('quick_blue/method');
   static const _event_scanResult = EventChannel('quick_blue/event.scanResult');
   static const _message_connector = BasicMessageChannel('quick_blue/message.connector', StandardMessageCodec());
+
+  static final StreamController<dynamic> _writeMethodStream = StreamController.broadcast();
+  final _writeLock = Mutex();
 
   MethodChannelQuickBlue() {
     _message_connector.setMessageHandler(_handleConnectorMessage);
@@ -93,6 +97,8 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
       onValueChanged?.call(deviceId, serviceId, characteristic, value);
     } else if (message['mtuConfig'] != null) {
       _mtuConfigController.add(message['mtuConfig']);
+    } else if (message['onCharacteristicWrite'] != null) {
+      _writeMethodStream.add(message);
     }
   }
 
@@ -141,5 +147,31 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
       'expectedMtu': expectedMtu,
     }).then((_) => _log('requestMtu invokeMethod success'));
     return await _mtuConfigController.stream.first;
+  }
+
+  @override
+  Future<bool> writeValueWithResponse(String deviceId, String service, String characteristic, Uint8List value) async {
+    await _writeLock.acquire();
+    try {
+      var responseStream = _writeMethodStream.stream //
+          .where((message) => message["deviceId"] == deviceId)
+          .where((message) => message["serviceId"] == service)
+          .where((message) => message["onCharacteristicWrite"]["characteristic"] == characteristic);
+
+      Future<dynamic> futureResponse = responseStream.first;
+
+      _method.invokeMethod("writeValue", {
+        'deviceId': deviceId,
+        'service': service,
+        'characteristic': characteristic,
+        'value': value,
+        'bleOutputProperty': BleOutputProperty.withResponse.value,
+      });
+
+      print((await futureResponse)["onCharacteristicWrite"]["success"]);
+      return (await futureResponse)["onCharacteristicWrite"]["success"] as bool;
+    } finally {
+      _writeLock.release();
+    }
   }
 }

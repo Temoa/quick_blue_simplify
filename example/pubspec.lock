@@ -115,6 +115,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.9.1"
+  mutex:
+    dependency: transitive
+    description:
+      name: mutex
+      sha256: "8827da25de792088eb33e572115a5eb0d61d61a3c01acbc8bcbe76ed78f1a1f2"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "3.1.0"
   path:
     dependency: transitive
     description:
@@ -177,7 +185,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.0.4"
+    version: "0.0.5"
   sky_engine:
     dependency: transitive
     description: flutter
