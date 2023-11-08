@@ -271,7 +271,7 @@ extension SwiftQuickBluePlugin: CBPeripheralDelegate {
       "serviceId": characteristic.service?.uuid.uuidStr ?? "",
       "onCharacteristicWrite": [
         "characteristic": characteristic.uuid.uuidStr,
-        "success" to (error == nil),
+        "success" : (error == nil),
       ]
     ])
   }

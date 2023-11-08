@@ -168,7 +168,6 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
         'bleOutputProperty': BleOutputProperty.withResponse.value,
       });
 
-      print((await futureResponse)["onCharacteristicWrite"]["success"]);
       return (await futureResponse)["onCharacteristicWrite"]["success"] as bool;
     } finally {
       _writeLock.release();
