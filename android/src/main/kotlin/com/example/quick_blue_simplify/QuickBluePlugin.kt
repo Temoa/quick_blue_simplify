@@ -219,6 +219,12 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
     knownGatts.remove(gatt)
     gatt.disconnect()
     gatt.close()
+    sendMessage(
+      messageConnector, mapOf(
+        "deviceId" to gatt.device.address,
+        "ConnectionState" to "disconnected"
+      )
+    )
   }
 
   private fun getScanCallback(): MyScanCallback {
@@ -268,21 +274,27 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
   private val gattCallback = object : BluetoothGattCallback() {
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
       Log.v(TAG, "onConnectionStateChange: device(${gatt.device.address}) status($status), newState($newState)")
-      if (newState == BluetoothGatt.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
+
+      if (newState == BluetoothGatt.STATE_CONNECTED) {
         sendMessage(
           messageConnector, mapOf(
             "deviceId" to gatt.device.address,
             "ConnectionState" to "connected"
           )
         )
-      } else {
-        cleanConnection(gatt)
+      } else if (newState == BluetoothGatt.STATE_DISCONNECTED // 0 Programmatically disconnected
+        || newState == BluetoothGatt.HID_DEVICE // 19 Disconnected by device
+      ) {
         sendMessage(
           messageConnector, mapOf(
             "deviceId" to gatt.device.address,
             "ConnectionState" to "disconnected"
           )
         )
+        mainThreadHandler.post {
+          knownGatts.remove(gatt)
+          gatt.close()
+        }
       }
     }
 
