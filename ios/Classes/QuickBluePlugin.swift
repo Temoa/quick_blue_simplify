@@ -262,9 +262,6 @@ extension SwiftQuickBluePlugin: CBPeripheralDelegate {
   }
 
   public func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
-    if(characteristic.value == nil) {
-      return
-    }
     print("peripheral:didWriteValueForCharacteristic \(characteristic.uuid.uuidStr) \(characteristic.value) error: \(error)")
     self.messageConnector.sendMessage([
       "deviceId": peripheral.uuid.uuidString,
