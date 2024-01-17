@@ -1,6 +1,6 @@
 # quick_blue_simplify
 
-A new Flutter project.
+quick_blue_simplify
 
 ## Getting Started
 
