@@ -173,4 +173,11 @@ class MethodChannelQuickBlue extends QuickBluePlatform {
       _writeLock.release();
     }
   }
+
+  @override
+  Future<void> showLog(bool show) async {
+    _method.invokeMethod('showLog', {
+      'showLog': show,
+    }).then((_) => _log('showLog invokeMethod success'));
+  }
 }

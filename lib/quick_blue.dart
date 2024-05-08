@@ -79,4 +79,8 @@ class QuickBlue {
   static Future<void> writeValueWithResponse(String deviceId, String service, String characteristic, Uint8List value) {
     return _platform.writeValueWithResponse(deviceId, service, characteristic, value);
   }
+
+  static Future<void> showLog(bool show) {
+    return _platform.showLog(show);
+  }
 }

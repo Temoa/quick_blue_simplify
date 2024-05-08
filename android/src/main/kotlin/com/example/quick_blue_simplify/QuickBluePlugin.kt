@@ -1,8 +1,14 @@
 package com.example.quick_blue_simplify
 
-import android.R.attr.value
 import android.annotation.SuppressLint
-import android.bluetooth.*
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
@@ -17,12 +23,16 @@ import android.os.Looper
 import android.os.ParcelUuid
 import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
-import io.flutter.plugin.common.*
+import io.flutter.plugin.common.BasicMessageChannel
+import io.flutter.plugin.common.EventChannel
+import io.flutter.plugin.common.MethodCall
+import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
+import io.flutter.plugin.common.StandardMessageCodec
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.*
+import java.util.UUID
 
 
 private const val TAG = "QuickBluePlugin"
@@ -72,12 +82,19 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
 
   private var lastScanCallback: MyScanCallback? = null
 
+  private var showLog = false;
+
   private fun sendMessage(messageChannel: BasicMessageChannel<Any>, message: Map<String, Any>) {
     mainThreadHandler.post { messageChannel.send(message) }
   }
 
   override fun onMethodCall(call: MethodCall, result: Result) {
     when (call.method) {
+      "showLog" -> {
+        showLog = call.argument<Boolean>("showLog") ?: showLog
+        result.success(null)
+      }
+
       "isBluetoothAvailable" -> {
         result.success(bluetoothManager.adapter.isEnabled)
       }
@@ -234,11 +251,11 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
   inner class MyScanCallback : ScanCallback() {
 
     override fun onScanFailed(errorCode: Int) {
-      Log.v(TAG, "onScanFailed: $errorCode")
+      if (showLog) Log.v(TAG, "onScanFailed: $errorCode")
     }
 
     override fun onScanResult(callbackType: Int, result: ScanResult) {
-      Log.v(TAG, "onScanResult: $callbackType + $result")
+      if (showLog) Log.v(TAG, "onScanResult: $callbackType + $result")
       scanResultSink?.success(
         mapOf<String, Any>(
           "name" to (result.device.name ?: ""),
@@ -251,7 +268,7 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
     }
 
     override fun onBatchScanResults(results: MutableList<ScanResult>?) {
-      Log.v(TAG, "onBatchScanResults: $results")
+      if (showLog) Log.v(TAG, "onBatchScanResults: $results")
     }
   }
 
@@ -273,7 +290,7 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
 
   private val gattCallback = object : BluetoothGattCallback() {
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-      Log.v(TAG, "onConnectionStateChange: device(${gatt.device.address}) status($status), newState($newState)")
+      if (showLog) Log.v(TAG, "onConnectionStateChange: device(${gatt.device.address}) status($status), newState($newState)")
 
       if (newState == BluetoothGatt.STATE_CONNECTED) {
         sendMessage(
@@ -299,15 +316,15 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
     }
 
     override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-      Log.v(TAG, "onServicesDiscovered ${gatt.device.address} $status")
+      if (showLog) Log.v(TAG, "onServicesDiscovered ${gatt.device.address} $status")
       if (status != BluetoothGatt.GATT_SUCCESS) return
 
       gatt.services?.forEach { service ->
-        Log.v(TAG, "Service " + service.uuid)
+        if (showLog) Log.v(TAG, "Service " + service.uuid)
         service.characteristics.forEach { characteristic ->
-          Log.v(TAG, "    Characteristic ${characteristic.uuid}")
+          if (showLog) Log.v(TAG, "    Characteristic ${characteristic.uuid}")
           characteristic.descriptors.forEach {
-            Log.v(TAG, "        Descriptor ${it.uuid}")
+            if (showLog) Log.v(TAG, "        Descriptor ${it.uuid}")
           }
         }
 
@@ -331,7 +348,7 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
     }
 
     override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
-      Log.v(TAG, "onCharacteristicRead ${characteristic.uuid}, ${characteristic.value.contentToString()}")
+      if (showLog) Log.v(TAG, "onCharacteristicRead ${characteristic.uuid}, ${characteristic.value.contentToString()}")
       sendMessage(
         messageConnector, mapOf(
           "deviceId" to gatt.device.address,
@@ -345,7 +362,7 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
     }
 
     override fun onCharacteristicWrite(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic, status: Int) {
-      Log.v(TAG, "onCharacteristicWrite ${characteristic.uuid}, ${characteristic.value.contentToString()} $status")
+      if (showLog) Log.v(TAG, "onCharacteristicWrite ${characteristic.uuid}, ${characteristic.value.contentToString()} $status")
       if (gatt == null) return
       sendMessage(
         messageConnector, mapOf(
@@ -360,7 +377,7 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
     }
 
     override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
-      Log.v(TAG, "onCharacteristicChanged ${characteristic.uuid}, ${characteristic.value.contentToString()}")
+      if (showLog) Log.v(TAG, "onCharacteristicChanged ${characteristic.uuid}, ${characteristic.value.contentToString()}")
       sendMessage(
         messageConnector, mapOf(
           "deviceId" to gatt.device.address,
