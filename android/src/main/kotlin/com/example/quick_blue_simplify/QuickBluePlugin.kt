@@ -49,6 +49,8 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
   private lateinit var messageConnector: BasicMessageChannel<Any>
 
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+    println("onAttachedToEngine")
+
     method = MethodChannel(flutterPluginBinding.binaryMessenger, "quick_blue/method")
     eventScanResult = EventChannel(flutterPluginBinding.binaryMessenger, "quick_blue/event.scanResult")
     messageConnector = BasicMessageChannel(flutterPluginBinding.binaryMessenger, "quick_blue/message.connector", StandardMessageCodec.INSTANCE)
@@ -65,12 +67,17 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
   }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+    println("onDetachedFromEngine")
+
     lastScanCallback?.let { bluetoothManager.adapter.bluetoothLeScanner?.stopScan(it) }
 
     eventScanResult.setStreamHandler(null)
     method.setMethodCallHandler(null)
 
     context.unregisterReceiver(mBluetoothAdapterStateReceiver)
+
+    knownGatts.clear();
+    cacheBluetoothDevices.clear();
   }
 
   private lateinit var context: Context
