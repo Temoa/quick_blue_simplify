@@ -76,6 +76,10 @@ class QuickBluePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHan
 
     context.unregisterReceiver(mBluetoothAdapterStateReceiver)
 
+    for (gatt in knownGatts) {
+      gatt.disconnect();
+      gatt.close();
+    }
     knownGatts.clear();
     cacheBluetoothDevices.clear();
   }
